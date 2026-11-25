@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FoodBridge — Predict. Prevent. Rescue.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="bg-blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+<header class="topbar" id="topbar">
+  <div class="shell bar">
+    <a class="brand" href="#"><span class="logo">🥗</span>FoodBridge</a>
+    <span class="tagline">Predict. Prevent. Rescue.</span>
+    <div id="who"></div>
+  </div>
+</header>
+
+<div class="shell">
+<main id="app">
+
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="dot"></span>AI-powered food waste prevention &amp; rescue</p>
+      <h1>Better forecasts.<br><em>Less food waste.</em></h1>
+      <p class="lead">Predict demand before preparation, prevent avoidable surplus, and connect verified surplus with NGOs that need it.</p>
+      <div class="hero-cta">
+        <a href="#auth" class="btn big" data-auth="register">Get started free</a>
+        <a href="#how" class="btn big ghost">See how it works</a>
+      </div>
+      <ul class="trust">
+        <li>✔ Random-forest forecasts</li><li>✔ Verified NGOs</li><li>✔ Human-confirmed food safety</li>
+      </ul>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="float-card fc-main">
+        <div class="fc-head"><b>Tomorrow's lunch forecast</b><span class="pill">Medium risk</span></div>
+        <div class="mini-bars"><i style="--h:55%"></i><i style="--h:72%"></i><i style="--h:48%"></i><i style="--h:85%"></i><i style="--h:63%"></i><i style="--h:92%"></i><i style="--h:70%"></i></div>
+        <div class="fc-foot"><span>Recommended prep</span><b>240 meals</b></div>
+      </div>
+      <div class="float-card fc-a"><span class="big-emoji">🍱</span><div><b data-count="1280">1280</b><small>meals rescued</small></div></div>
+      <div class="float-card fc-b"><span class="big-emoji">🤝</span><div><b>42 NGOs</b><small>verified partners</small></div></div>
+      <div class="float-card fc-c"><span class="big-emoji">📉</span><div><b>-31%</b><small>surplus reduced</small></div></div>
+    </div>
+  </section>
+
+  <section class="how reveal" id="how">
+    <h2 class="section-title">From forecast to rescue in <em>3 steps</em></h2>
+    <div class="steps">
+      <article class="step"><span class="num">1</span><div class="ic">📊</div><h3>Predict</h3><p>Upload past records and get demand forecasts with clear explanations and risk alerts.</p></article>
+      <article class="step"><span class="num">2</span><div class="ic">🧮</div><h3>Prevent</h3><p>Use the what-if simulator to prepare the right quantity and cut avoidable surplus.</p></article>
+      <article class="step"><span class="num">3</span><div class="ic">🚚</div><h3>Rescue</h3><p>List real surplus and match it with verified NGOs for scheduled, tracked pickup.</p></article>
+    </div>
+  </section>
+
+  <section class="auth reveal" id="auth">
+    <div class="auth-card">
+      <div class="auth-side">
+        <h2>Join the movement</h2>
+        <p>Restaurants, caterers and canteens forecast smarter. NGOs receive safe surplus food.</p>
+        <ul><li>🌱 One account, role-based dashboard</li><li>🔒 Secure signed sessions</li><li>⚡ Ready in under a minute</li></ul>
+      </div>
+      <div class="auth-main">
+        <div class="seg" id="seg">
+          <button type="button" class="on" data-tab="login">Sign in</button>
+          <button type="button" data-tab="register">Create account</button>
+          <span class="seg-thumb"></span>
+        </div>
+
+        <form id="login" class="auth-form">
+          <label>Email<input name="email" type="email" required placeholder="you@example.com"></label>
+          <label>Password<input name="password" type="password" required placeholder="••••••••"></label>
+          <button>Sign in</button>
+          <small>Demo: provider@foodbridge.example.com / Provider@12345</small>
+        </form>
+
+        <form id="register" class="auth-form" hidden>
+          <div class="grid2">
+            <label>Your name<input name="name" required></label>
+            <label>Email<input name="email" type="email" required></label>
+          </div>
+          <div class="grid2">
+            <label>Password (8+ characters)<input name="password" type="password" minlength="8" required></label>
+            <label>Account type<select name="role"><option value="provider">Food provider</option><option value="ngo">NGO</option></select></label>
+          </div>
+          <div id="provider-fields" class="grid2">
+            <label>Organization<input name="organization_name"></label>
+            <label>Organization type<input name="organization_type" value="Restaurant"></label>
+            <label class="span2">Food categories<input name="food_categories" placeholder="Indian meals, snacks"></label>
+          </div>
+          <div id="ngo-fields" class="grid2" hidden>
+            <label>NGO name<input name="ngo_name"></label>
+            <label>Service area<input name="service_area"></label>
+            <label>Description<input name="description"></label>
+            <label>People served daily<input name="people_served" type="number" min="0" value="0"></label>
+            <label>Collection capacity<input name="collection_capacity" type="number" min="0" value="100"></label>
+            <label>Food requirements<input name="food_requirements"></label>
+            <label class="span2">Preferred categories<input name="preferred_categories"></label>
+            <label class="check span2"><input type="checkbox" name="available_for_pickup" value="true" checked> Currently available for food pickup</label>
+          </div>
+          <div class="grid2">
+            <label>Phone<input name="phone" required></label>
+            <label>City<input name="city" value="Bengaluru" required></label>
+          </div>
+          <label>Address<input name="address" required></label>
+          <button>Create account</button>
+        </form>
+        <p class="muted fine">Demo accounts are local sample accounts. Change passwords and secret settings before deployment.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<footer class="foot"><div class="shell">🥗 FoodBridge · AI-assisted prevention and verified-surplus rescue. Not a food-safety certification.</div></footer>
+
+<script src="/static/app.js"></script>
+<script src="/static/fx.js"></script>
+
+<!-- FoodBridge Chatbot -->
+<iframe
+  src="/static/chatbot.html"
+  title="FoodBridge Chatbot"
+  style="position:fixed;bottom:0;right:0;width:400px;height:600px;border:0;z-index:99999;background:transparent;">
+</iframe>
+
+</body>
+</html>

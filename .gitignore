@@ -1,6 +1,15 @@
 venv/
+.venv/
 __pycache__/
+.pytest_cache/
 *.pyc
+*.pyo
+*.pyd
+*.env
 .env
 .DS_Store
 *.log
+foodbridge.db
+foodbridge.db-shm
+foodbridge.db-wal
+models/*.joblib

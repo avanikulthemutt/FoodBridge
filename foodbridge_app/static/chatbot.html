@@ -1,0 +1,378 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodBridge Chatbot</title>
+
+<style>
+    :root {
+        --green: #198754;
+        --dark-green: #11643d;
+        --light: #eaf7ef;
+        --text: #24352b;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+    }
+
+    /* Floating chatbot button */
+    #chat-toggle {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        width: 65px;
+        height: 65px;
+        border: none;
+        border-radius: 50%;
+        background: var(--green);
+        color: white;
+        font-size: 29px;
+        cursor: pointer;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+        z-index: 9999;
+        transition: 0.3s;
+    }
+
+    #chat-toggle:hover {
+        background: var(--dark-green);
+        transform: scale(1.08);
+    }
+
+    /* Chat window */
+    #chat-window {
+        display: none;
+        position: fixed;
+        bottom: 105px;
+        right: 25px;
+        width: 360px;
+        height: 510px;
+        max-height: calc(100vh - 130px);
+        background: white;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 8px 35px rgba(0,0,0,0.2);
+        z-index: 9999;
+        flex-direction: column;
+    }
+
+    #chat-window.open {
+        display: flex;
+    }
+
+    /* Header */
+    .chat-header {
+        background: var(--green);
+        color: white;
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .header-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .bot-avatar {
+        width: 42px;
+        height: 42px;
+        background: white;
+        color: var(--green);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 22px;
+    }
+
+    .chat-header h3 {
+        margin: 0 0 4px;
+        font-size: 17px;
+    }
+
+    .chat-header small {
+        opacity: 0.9;
+    }
+
+    #close-chat {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 25px;
+        cursor: pointer;
+    }
+
+    /* Messages */
+    #chat-messages {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        background: #f7faf8;
+    }
+
+    .message {
+        max-width: 85%;
+        padding: 11px 14px;
+        border-radius: 14px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .bot-message {
+        background: white;
+        color: var(--text);
+        border: 1px solid #e4eee7;
+        border-bottom-left-radius: 4px;
+    }
+
+    .user-message {
+        background: var(--green);
+        color: white;
+        margin-left: auto;
+        border-bottom-right-radius: 4px;
+    }
+
+    /* Quick replies */
+    .quick-replies {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+    }
+
+    .quick-replies button {
+        border: 1px solid var(--green);
+        color: var(--dark-green);
+        background: white;
+        padding: 7px 10px;
+        border-radius: 18px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    .quick-replies button:hover {
+        background: var(--light);
+    }
+
+    /* Input area */
+    .chat-input-area {
+        display: flex;
+        padding: 12px;
+        gap: 8px;
+        border-top: 1px solid #e5e5e5;
+        background: white;
+    }
+
+    #chat-input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid #d6e2d9;
+        border-radius: 22px;
+        padding: 12px 14px;
+        outline: none;
+        font-size: 14px;
+    }
+
+    #chat-input:focus {
+        border-color: var(--green);
+    }
+
+    #send-btn {
+        width: 43px;
+        height: 43px;
+        border: none;
+        border-radius: 50%;
+        background: var(--green);
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    #send-btn:hover {
+        background: var(--dark-green);
+    }
+
+    .chat-footer {
+        text-align: center;
+        font-size: 10px;
+        color: #888;
+        padding: 5px;
+        background: white;
+    }
+
+    @media (max-width: 450px) {
+        #chat-window {
+            width: calc(100vw - 24px);
+            right: 12px;
+            bottom: 90px;
+            height: min(510px, calc(100vh - 110px));
+        }
+
+        #chat-toggle {
+            right: 18px;
+            bottom: 18px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<!-- Floating button -->
+<button id="chat-toggle" aria-label="Open FoodBridge chatbot">💬</button>
+
+<!-- Chat window -->
+<div id="chat-window">
+
+    <div class="chat-header">
+        <div class="header-info">
+            <div class="bot-avatar">🌱</div>
+            <div>
+                <h3>FoodBridge Assistant</h3>
+                <small>Here to help you!</small>
+            </div>
+        </div>
+        <button id="close-chat" aria-label="Close chatbot">×</button>
+    </div>
+
+    <div id="chat-messages">
+        <div class="message bot-message">
+            Hello! 👋 Welcome to <b>FoodBridge</b>! 🌍<br><br>
+            I can help you understand food donations, NGO connections and pickups.
+            What would you like to know?
+        </div>
+
+        <div class="quick-replies">
+            <button onclick="quickReply('How can I donate food?')">Donate Food</button>
+            <button onclick="quickReply('How can an NGO register?')">NGO Registration</button>
+            <button onclick="quickReply('How does pickup work?')">Pickup Process</button>
+            <button onclick="quickReply('What is FoodBridge?')">About FoodBridge</button>
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <input
+            type="text"
+            id="chat-input"
+            placeholder="Type your message..."
+            autocomplete="off"
+        >
+        <button id="send-btn" aria-label="Send message">➤</button>
+    </div>
+
+    <div class="chat-footer">
+        FoodBridge – Reducing Food Waste, Fighting Hunger 💚
+    </div>
+
+</div>
+
+<script>
+    const chatToggle = document.getElementById("chat-toggle");
+    const chatWindow = document.getElementById("chat-window");
+    const closeChat = document.getElementById("close-chat");
+    const chatMessages = document.getElementById("chat-messages");
+    const chatInput = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    chatToggle.addEventListener("click", () => {
+        chatWindow.classList.toggle("open");
+        if (chatWindow.classList.contains("open")) {
+            chatInput.focus();
+        }
+    });
+
+    closeChat.addEventListener("click", () => {
+        chatWindow.classList.remove("open");
+    });
+
+    function addMessage(message, type) {
+        const div = document.createElement("div");
+        div.className = "message " + type;
+        div.textContent = message;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function quickReply(message) {
+        chatInput.value = message;
+        sendMessage();
+    }
+
+    function getBotResponse(message) {
+        const msg = message.toLowerCase();
+
+        if (msg.includes("donat") || msg.includes("provider")) {
+            return "To donate food, register or log in as a food provider. Add your food details, quantity, category, preparation time and pickup information. NGOs can then view suitable donations.";
+        }
+
+        if (msg.includes("ngo") || msg.includes("register")) {
+            return "NGOs can register on FoodBridge by creating an account and providing their organisation details. Once registered and verified, they can find available food donations.";
+        }
+
+        if (msg.includes("pickup") || msg.includes("collect") || msg.includes("delivery")) {
+            return "After an NGO accepts a donation, the pickup can be coordinated with the food provider using the available pickup details. Please check your dashboard for the latest donation status.";
+        }
+
+        if (msg.includes("match") || msg.includes("connect")) {
+            return "FoodBridge helps connect food providers with suitable NGOs based on factors such as food category, location, availability and collection capacity.";
+        }
+
+        if (msg.includes("status") || msg.includes("track")) {
+            return "You can check the status of your donation from your dashboard. Available statuses may include Available, Accepted, Pickup Scheduled, Completed or Expired.";
+        }
+
+        if (msg.includes("foodbridge") || msg.includes("about") || msg.includes("purpose")) {
+            return "FoodBridge is a platform that connects food providers with NGOs to reduce food waste and help distribute surplus food to people in need. 🌱";
+        }
+
+        if (msg.includes("contact") || msg.includes("support") || msg.includes("help")) {
+            return "I'm here to help with general FoodBridge questions. For account-specific assistance, please use the contact or support details provided on the website.";
+        }
+
+        if (msg.includes("hello") || msg.includes("hi") || msg.includes("hey")) {
+            return "Hello! 😊 Welcome to FoodBridge. How can I help you today?";
+        }
+
+        if (msg.includes("thank")) {
+            return "You're welcome! 💚 Thank you for being part of the FoodBridge mission.";
+        }
+
+        return "Thanks for your question! I can help with food donations, NGO registration, matching, pickup processes and donation tracking. Could you ask me about one of these topics?";
+    }
+
+    function sendMessage() {
+        const message = chatInput.value.trim();
+
+        if (!message) return;
+
+        addMessage(message, "user-message");
+        chatInput.value = "";
+
+        setTimeout(() => {
+            const response = getBotResponse(message);
+            addMessage(response, "bot-message");
+        }, 450);
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    chatInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            sendMessage();
+        }
+    });
+</script>
+
+</body>
+</html>

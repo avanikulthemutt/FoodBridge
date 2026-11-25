@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FoodBridge | Surplus food, delivered to people who need it</title>
+  <meta name="description" content="FoodBridge connects restaurants, hotels, canteens and event organizers with nearby NGOs, matching by quantity, freshness, urgency and location.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============ CUTE ILLUSTRATIONS (reused with <use href="#id">) ============ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="i-apple" viewBox="0 0 48 48"><path d="M24 12c-8-5-18 1-16 13 1 9 8 17 16 14 8 3 15-5 16-14 2-12-8-18-16-13z" fill="#e5484d"/><path d="M24 12c0-5 2-8 6-9-1 4-2 7-6 9z" fill="#2f9456"/><circle cx="18" cy="26" r="2" fill="#17261c"/><circle cx="30" cy="26" r="2" fill="#17261c"/><path d="M21 31q3 3 6 0" fill="none" stroke="#17261c" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-bread" viewBox="0 0 48 48"><rect x="5" y="13" width="38" height="27" rx="13" fill="#f2a33a"/><path d="M16 13v6M24 13v6M32 13v6" stroke="#c97a12" stroke-width="3" stroke-linecap="round"/><circle cx="18" cy="28" r="2" fill="#17261c"/><circle cx="30" cy="28" r="2" fill="#17261c"/><path d="M21 32q3 3 6 0" fill="none" stroke="#17261c" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 48 48"><path d="M24 41C8 29 6 17 14 12c5-3 9 0 10 4 1-4 5-7 10-4 8 5 6 17-10 29z" fill="#ff7a90"/></symbol>
+    <symbol id="i-bowl" viewBox="0 0 48 48"><path d="M18 14q-3-4 0-7M26 14q-3-4 0-7M34 14q-3-4 0-7" stroke="#9db5a3" fill="none" stroke-width="2" stroke-linecap="round"/><path d="M10 24a14 10 0 0 1 28 0z" fill="#fff" stroke="#d9e6dc" stroke-width="2"/><path d="M6 24h36a18 18 0 0 1-36 0z" fill="#1f6b3a"/><circle cx="19" cy="31" r="2" fill="#fff"/><circle cx="29" cy="31" r="2" fill="#fff"/></symbol>
+    <symbol id="i-cloche" viewBox="0 0 48 48"><path d="M6 34a18 18 0 0 1 36 0z" fill="#9db5a3"/><rect x="4" y="34" width="40" height="5" rx="2.5" fill="#6b8a74"/><circle cx="24" cy="14" r="3.5" fill="#6b8a74"/><path d="M14 28a10 10 0 0 1 8-9" stroke="#fff" fill="none" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 48 48"><path d="M12 25v9c0 3 6 6 12 6s12-3 12-6v-9l-12 6z" fill="#2f9456"/><path d="M24 10L4 20l20 10 20-10z" fill="#1f6b3a"/><path d="M42 21v12" stroke="#f2a33a" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="i-balloon" viewBox="0 0 48 48"><ellipse cx="24" cy="18" rx="12" ry="14" fill="#ff7a90"/><path d="M24 32l-3 4h6z" fill="#ff7a90"/><path d="M24 36q-5 4 0 10" stroke="#6b8a74" fill="none" stroke-width="2"/><path d="M17 12q2-4 6-4" stroke="#fff" fill="none" stroke-width="2.5" stroke-linecap="round" opacity=".7"/></symbol>
+  </defs></svg>
+
+  <!-- ============ HEADER ============ -->
+  <header class="site-header">
+    <a class="logo" href="#top" aria-label="FoodBridge home">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="9" fill="#1f6b3a"/>
+        <path d="M5 21 Q16 6 27 21" fill="none" stroke="#f2a33a" stroke-width="3" stroke-linecap="round"/>
+        <path d="M5 24h22" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      FoodBridge
+    </a>
+
+    <nav class="navigation" id="navigation" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#donors">For donors</a>
+      <a href="#ngos">For NGOs</a>
+      <a href="#impact">Impact</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+      <a class="btn btn-primary" href="donate.html">Donate food</a>
+    </div>
+
+    <button class="menu-button" id="menuButton" aria-label="Open menu" aria-expanded="false" aria-controls="navigation">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <main id="top">
+
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <div class="hero-text">
+        <p class="badge">AI-powered food donation</p>
+        <h1>Surplus food, delivered to people who need it.</h1>
+        <p class="lead">FoodBridge connects restaurants, hotels, college canteens and event organizers with nearby NGOs, matching by quantity, freshness, urgency and location.</p>
+        <div class="hero-buttons">
+          <a class="btn btn-primary btn-lg" href="donate.html">I have surplus food</a>
+          <a class="btn btn-outline btn-lg" href="ngo-register.html">I represent an NGO</a>
+        </div>
+      </div>
+
+      <!-- Live match card (content rotates in script.js) -->
+      <div class="hero-visual">
+        <!-- Mascot: friendly lunchbox waving hello -->
+        <svg class="mascot" viewBox="0 0 160 160" aria-hidden="true">
+          <ellipse cx="80" cy="150" rx="40" ry="6" fill="#17261c" opacity=".08"/>
+          <rect x="30" y="62" width="100" height="78" rx="22" fill="#2f9456"/>
+          <rect x="24" y="44" width="112" height="30" rx="14" fill="#f2a33a"/>
+          <path d="M62 44Q80 22 98 44" fill="none" stroke="#124a27" stroke-width="7" stroke-linecap="round"/>
+          <g class="m-eyes"><ellipse cx="62" cy="96" rx="7" ry="9" fill="#fff"/><ellipse cx="98" cy="96" rx="7" ry="9" fill="#fff"/><circle cx="63" cy="98" r="4" fill="#17261c"/><circle cx="99" cy="98" r="4" fill="#17261c"/></g>
+          <circle cx="48" cy="112" r="6" fill="#ff9fae" opacity=".85"/><circle cx="112" cy="112" r="6" fill="#ff9fae" opacity=".85"/>
+          <path d="M70 112Q80 124 90 112" fill="none" stroke="#17261c" stroke-width="3" stroke-linecap="round"/>
+          <g class="m-arm"><path d="M128 96q22-6 22-30" fill="none" stroke="#2f9456" stroke-width="9" stroke-linecap="round"/><circle cx="150" cy="62" r="8" fill="#2f9456"/></g>
+          <use class="m-heart" href="#i-heart" x="10" y="14" width="26" height="26"/>
+        </svg>
+        <svg class="floater f1" aria-hidden="true"><use href="#i-apple"/></svg>
+        <svg class="floater f2" aria-hidden="true"><use href="#i-bread"/></svg>
+        <svg class="floater f3" aria-hidden="true"><use href="#i-bowl"/></svg>
+      <article class="match-card" aria-live="polite">
+        <header class="match-head">
+          <span class="live"><i></i>Live match</span>
+          <span class="match-route"><b id="mDonor"></b> to <b id="mNgo"></b></span>
+        </header>
+
+        <div class="match-grid">
+          <div><span class="label">Quantity</span><strong><span id="mMeals"></span> meals</strong></div>
+          <div><span class="label">Freshness</span><strong>Safe for <span id="mHours"></span> hrs</strong></div>
+          <div><span class="label">Urgency</span><strong id="mUrgency" class="tag"></strong></div>
+          <div><span class="label">Distance</span><strong><span id="mKm"></span> km</strong></div>
+        </div>
+
+        <div class="map" role="img" aria-label="Pickup route from donor to NGO">
+          <svg viewBox="0 0 400 170" preserveAspectRatio="xMidYMid slice">
+            <g stroke="#cfe3d3" stroke-width="1">
+              <path d="M0 40H400M0 90H400M0 140H400M70 0V170M170 0V170M270 0V170M350 0V170"/>
+            </g>
+            <path id="routePath" d="M60 125 C130 125 120 55 200 62 S300 40 345 45" fill="none" stroke="#1f6b3a" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 9"/>
+            <circle cx="60" cy="125" r="9" fill="#f2a33a"/>
+            <circle cx="345" cy="45" r="9" fill="#1f6b3a"/>
+            <circle class="van" r="6" fill="#fff" stroke="#1f6b3a" stroke-width="3">
+              <animateMotion dur="5s" repeatCount="indefinite" path="M60 125 C130 125 120 55 200 62 S300 40 345 45"/>
+            </circle>
+          </svg>
+          <span class="pin pin-a">Pickup</span>
+          <span class="pin pin-b">Drop-off</span>
+        </div>
+      </article>
+      </div>
+    </section>
+
+    <!-- ============ IMPACT STRIP (served numbers, shown first) ============ -->
+    <section class="impact-strip" id="impact" aria-label="Our impact">
+      <div class="stats">
+        <div class="stat"><strong data-key="meals_rescued"></strong><span>meals rescued</span></div>
+        <div class="stat"><strong data-key="partner_donors"></strong><span>partner donors</span></div>
+        <div class="stat"><strong data-key="ngos_served"></strong><span>NGOs served</span></div>
+        <div class="stat"><strong data-key="tonnes_diverted" data-decimals="1"></strong><span>tonnes of waste diverted</span></div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section class="section" id="how">
+      <div class="section-head reveal">
+        <h2>From surplus to served in four steps</h2>
+        <p>Listing takes under a minute. Matching, pickup and tracking happen on their own.</p>
+      </div>
+      <ol class="steps">
+        <li class="step reveal"><span class="step-no">1</span><h3>List surplus</h3><p>Donors post food type, quantity and pickup window in under a minute.</p></li>
+        <li class="step reveal"><span class="step-no">2</span><h3>AI matches</h3><p>The engine ranks nearby NGOs by need, capacity, freshness and distance.</p></li>
+        <li class="step reveal"><span class="step-no">3</span><h3>Confirm pickup</h3><p>The NGO accepts, and a volunteer or driver is assigned with live tracking.</p></li>
+        <li class="step reveal"><span class="step-no">4</span><h3>Track impact</h3><p>Both sides get a receipt with meals served and waste avoided.</p></li>
+      </ol>
+    </section>
+
+    <!-- ============ WHO IT'S FOR ============ -->
+    <section class="section section-tint" id="donors">
+      <div class="section-head reveal">
+        <h2>One platform, every kind of surplus</h2>
+        <p>If you cook more than you serve, FoodBridge finds it a home.</p>
+      </div>
+      <div class="cards">
+        <article class="card reveal"><div class="icon"><svg aria-hidden="true"><use href="#i-bowl"/></svg></div><h3>Restaurants</h3><p>Turn end-of-day extras into meals.</p></article>
+        <article class="card reveal"><div class="icon"><svg aria-hidden="true"><use href="#i-cloche"/></svg></div><h3>Hotels</h3><p>Redirect buffet and banquet surplus.</p></article>
+        <article class="card reveal"><div class="icon"><svg aria-hidden="true"><use href="#i-cap"/></svg></div><h3>College canteens</h3><p>Share surplus after mess hours.</p></article>
+        <article class="card reveal"><div class="icon"><svg aria-hidden="true"><use href="#i-balloon"/></svg></div><h3>Event organizers</h3><p>Rescue food after weddings and fests.</p></article>
+      </div>
+    </section>
+
+    <!-- ============ INTELLIGENT MATCHING ============ -->
+    <section class="section" id="ngos">
+      <div class="section-head reveal">
+        <h2>Four signals decide every match</h2>
+        <p>Each listing is scored in real time so the right food reaches the right NGO before it spoils.</p>
+      </div>
+      <div class="signals">
+        <div class="signal reveal"><div class="bar" style="--w:92%"></div><h3>Food quantity</h3><p>Meals compared with NGO capacity.</p></div>
+        <div class="signal reveal"><div class="bar" style="--w:85%"></div><h3>Freshness</h3><p>The safe-to-eat window.</p></div>
+        <div class="signal reveal"><div class="bar" style="--w:70%"></div><h3>Urgency</h3><p>Time left to pickup.</p></div>
+        <div class="signal reveal"><div class="bar" style="--w:90%"></div><h3>Location</h3><p>Distance and route.</p></div>
+      </div>
+    </section>
+
+    <!-- ============ CALL TO ACTION ============ -->
+    <section class="cta reveal">
+      <svg class="floater c1" aria-hidden="true"><use href="#i-heart"/></svg>
+      <svg class="floater c2" aria-hidden="true"><use href="#i-apple"/></svg>
+      <svg class="floater c3" aria-hidden="true"><use href="#i-bread"/></svg>
+      <h2>Ready to bridge the gap?</h2>
+      <p>Join as a donor or register your NGO today.</p>
+      <a class="btn btn-accent btn-lg" href="register.html">Get started</a>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="site-footer">
+    <strong>FoodBridge</strong>
+    <nav aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="mailto:your-email@example.com">your-email@example.com</a>
+    </nav>
+    <small>© 2026 FoodBridge</small>
+  </footer>
+
+  <script src="js/script.js"></script>
+
+  <!-- FoodBridge Chatbot -->
+  <iframe
+    src="chatbot.html"
+    title="FoodBridge Chatbot"
+    style="
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 400px;
+      height: 600px;
+      border: none;
+      z-index: 99999;
+      background: transparent;
+    ">
+  </iframe>
+
+</body>
+</html>

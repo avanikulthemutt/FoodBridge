@@ -1,0 +1,475 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+from datetime import datetime, date, timezone, timedelta
+from pathlib import Path
+import csv, io, json, os
+from .db import connect, init_db
+from .security import hash_password, verify_password, issue_token, read_token
+from .ml import train, predict, scenario
+
+ROOT=Path(__file__).resolve().parent
+@asynccontextmanager
+async def lifespan(app):
+    init_db()
+    yield
+
+app=FastAPI(title='FoodBridge API',version='1.0.0',description='Predict. Prevent. Rescue.',lifespan=lifespan)
+app.mount('/static',StaticFiles(directory=ROOT/'static'),name='static')
+@app.get('/')
+def home(): return FileResponse(ROOT/'static'/'index.html')
+@app.get('/health')
+def health():
+    with connect() as c: c.execute('SELECT 1')
+    return {'status':'ok','database':'connected','app':'FoodBridge'}
+
+class Register(BaseModel):
+ name:str=Field(min_length=2,max_length=120); email:EmailStr; password:str=Field(min_length=8)
+ role:str; phone:str=''; organization_name:str=''; organization_type:str='Restaurant'; address:str=''; city:str=''
+ food_categories:str=''; ngo_name:str=''; service_area:str=''; people_served:int=0; collection_capacity:int=0
+ food_requirements:str=''; preferred_categories:str=''; description:str=''; available_for_pickup:bool=True
+class Login(BaseModel): email:EmailStr; password:str
+class FoodRecord(BaseModel):
+ record_date:date; meal_type:str; food_category:str='General'; prepared:int=Field(gt=0); consumed:int=Field(ge=0)
+ event_indicator:bool=False; holiday_indicator:bool=False; weather:Optional[str]=None; notes:Optional[str]=None
+class PredictInput(BaseModel):
+ prediction_date:date; meal_type:str; food_category:str='General'; planned_preparation:int=Field(gt=0)
+ event_indicator:bool=False; holiday_indicator:bool=False
+class DonationInput(BaseModel):
+ food_record_id:int; food_name:str; food_category:str; quantity:int=Field(gt=0); meal_type:str; food_type:str
+ preparation_time:datetime; pickup_start:datetime; pickup_deadline:datetime; safe_consumption_deadline:datetime
+ storage_method:str; pickup_location:str; contact_information:str; notes:str=''; provider_verified:bool=False
+class StatusInput(BaseModel): status:str; remarks:str=''; pickup_time:Optional[datetime]=None
+class ReportInput(BaseModel): subject:str; details:str
+
+
+def current_user(authorization:Optional[str]=Header(None)):
+    if not authorization or not authorization.lower().startswith('bearer '): raise HTTPException(401,'Login required')
+    payload=read_token(authorization.split(' ',1)[1])
+    if not payload: raise HTTPException(401,'Session expired; log in again')
+    with connect() as c: row=c.execute('SELECT id,name,email,role,status,phone FROM users WHERE id=?',(payload['sub'],)).fetchone()
+    if not row or row['status']!='active': raise HTTPException(401,'Account unavailable')
+    return dict(row)
+def require(*roles):
+    def dep(u=Depends(current_user)):
+        if u['role'] not in roles: raise HTTPException(403,'Insufficient permissions')
+        return u
+    return dep
+
+def notify(c,user_id,title,message,kind):
+    if user_id: c.execute('INSERT INTO notifications(user_id,title,message,notification_type) VALUES(?,?,?,?)',(user_id,title,message,kind))
+
+def rowdict(r): return dict(r) if r else None
+def utc_dt(value): return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+@app.post('/api/auth/register')
+def register(p:Register):
+    if p.role not in ('provider','ngo'): raise HTTPException(422,'Self-registration is limited to provider and NGO accounts')
+    if p.people_served<0 or p.collection_capacity<0: raise HTTPException(422,'People served and collection capacity cannot be negative')
+    if not p.address.strip() or not p.city.strip() or not p.phone.strip(): raise HTTPException(422,'Phone, address and city are required')
+    if p.role=='provider' and (not p.organization_name or not p.organization_type): raise HTTPException(422,'Organization name and type are required')
+    if p.role=='ngo' and not p.ngo_name: raise HTTPException(422,'NGO name is required')
+    try:
+      with connect() as c:
+        cur=c.execute('INSERT INTO users(name,email,password_hash,role,phone) VALUES(?,?,?,?,?)',(p.name,p.email.lower(),hash_password(p.password),p.role,p.phone)); uid=cur.lastrowid
+        if p.role=='provider': c.execute('INSERT INTO providers(user_id,organization_name,organization_type,address,city,food_categories,contact_person) VALUES(?,?,?,?,?,?,?)',(uid,p.organization_name,p.organization_type,p.address,p.city,p.food_categories,p.name))
+        else:
+          c.execute('INSERT INTO ngos(user_id,ngo_name,address,city,service_area,description,people_served,collection_capacity,food_requirements,preferred_categories,available_for_pickup) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(uid,p.ngo_name,p.address,p.city,p.service_area,p.description,p.people_served,p.collection_capacity,p.food_requirements,p.preferred_categories,p.available_for_pickup))
+          for admin in c.execute("SELECT id FROM users WHERE role='admin'").fetchall(): notify(c,admin['id'],'NGO verification required',f'{p.ngo_name} registered and awaits review.','admin_verification')
+      return {'access_token':issue_token(uid,p.role,p.email),'user':{'id':uid,'name':p.name,'email':p.email,'role':p.role},'verification_status':'pending' if p.role=='ngo' else 'active'}
+    except Exception as e:
+      if 'UNIQUE' in str(e).upper(): raise HTTPException(409,'Email is already registered')
+      raise
+
+@app.post('/api/auth/login')
+def login(p:Login):
+    with connect() as c: u=c.execute('SELECT * FROM users WHERE email=? COLLATE NOCASE',(p.email,)).fetchone()
+    if not u or u['status']!='active' or not verify_password(p.password,u['password_hash']): raise HTTPException(401,'Invalid email or password')
+    return {'access_token':issue_token(u['id'],u['role'],u['email']),'user':{'id':u['id'],'name':u['name'],'email':u['email'],'role':u['role']}}
+@app.get('/api/me')
+def me(u=Depends(current_user)):
+    with connect() as c:
+      extra=c.execute('SELECT * FROM providers WHERE user_id=?',(u['id'],)).fetchone() if u['role']=='provider' else c.execute('SELECT * FROM ngos WHERE user_id=?',(u['id'],)).fetchone() if u['role']=='ngo' else None
+    return {**u,'profile':rowdict(extra)}
+
+@app.put('/api/profile')
+def update_profile(body:dict,u=Depends(current_user)):
+    name=(body.get('name') or u['name']).strip(); phone=(body.get('phone') or '').strip()
+    if len(name)<2: raise HTTPException(422,'Name must contain at least 2 characters')
+    with connect() as c:
+      c.execute('UPDATE users SET name=?,phone=? WHERE id=?',(name,phone,u['id']))
+      if u['role']=='ngo' and 'available_for_pickup' in body:
+        c.execute('UPDATE ngos SET available_for_pickup=? WHERE user_id=?',(int(bool(body['available_for_pickup'])),u['id']))
+    return {'updated':True,'name':name,'phone':phone}
+
+@app.get('/api/records')
+def list_records(meal_type:Optional[str]=None, start:Optional[date]=None, end:Optional[date]=None, q:Optional[str]=None,u=Depends(require('provider'))):
+    sql='SELECT * FROM food_records WHERE provider_id=?'; args=[u['id']]
+    if meal_type: sql+=' AND meal_type=?'; args.append(meal_type)
+    if start: sql+=' AND record_date>=?'; args.append(str(start))
+    if end: sql+=' AND record_date<=?'; args.append(str(end))
+    if q: sql+=' AND food_category LIKE ?'; args.append('%'+q+'%')
+    sql+=' ORDER BY record_date DESC,id DESC'
+    with connect() as c: return [dict(x) for x in c.execute(sql,args).fetchall()]
+@app.post('/api/records')
+def add_record(p:FoodRecord,u=Depends(require('provider'))):
+    if p.meal_type not in ('Breakfast','Lunch','Dinner') or not p.food_category.strip(): raise HTTPException(422,'Select a valid meal type and food category')
+    if p.record_date>date.today(): raise HTTPException(422,'Food records must describe today or an earlier date')
+    if p.consumed>p.prepared: raise HTTPException(422,'Consumed meals cannot exceed prepared meals')
+    surplus=p.prepared-p.consumed
+    try:
+      with connect() as c:
+        cur=c.execute('INSERT INTO food_records(provider_id,record_date,meal_type,food_category,prepared,consumed,surplus,event_indicator,holiday_indicator,weather,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(u['id'],str(p.record_date),p.meal_type,p.food_category,p.prepared,p.consumed,surplus,p.event_indicator,p.holiday_indicator,p.weather,p.notes))
+        c.execute('UPDATE predictions SET actual_consumed=? WHERE provider_id=? AND prediction_date=? AND meal_type=? AND food_category=?',(p.consumed,u['id'],str(p.record_date),p.meal_type,p.food_category))
+      return {'id':cur.lastrowid,'surplus':surplus}
+    except Exception as e:
+      if 'UNIQUE' in str(e).upper(): raise HTTPException(409,'A record for this date, meal and category already exists')
+      raise
+@app.put('/api/records/{rid}')
+def update_record(rid:int,p:FoodRecord,u=Depends(require('provider'))):
+    if p.meal_type not in ('Breakfast','Lunch','Dinner') or not p.food_category.strip(): raise HTTPException(422,'Select a valid meal type and food category')
+    if p.record_date>date.today(): raise HTTPException(422,'Food records must describe today or an earlier date')
+    if p.consumed>p.prepared: raise HTTPException(422,'Consumed meals cannot exceed prepared meals')
+    try:
+      with connect() as c:
+        old=c.execute('SELECT * FROM food_records WHERE id=? AND provider_id=?',(rid,u['id'])).fetchone()
+        if not old: raise HTTPException(404,'Record not found')
+        linked=c.execute('SELECT COUNT(*) FROM donations WHERE food_record_id=?',(rid,)).fetchone()[0]
+        if linked and (str(p.record_date)!=old['record_date'] or p.meal_type!=old['meal_type'] or p.food_category!=old['food_category']):
+          raise HTTPException(409,'Date, meal and category cannot change after a donation has referenced this record')
+        allocated=c.execute("SELECT COALESCE(SUM(quantity),0) FROM donations WHERE food_record_id=? AND status NOT IN ('Cancelled','Rejected','Expired')",(rid,)).fetchone()[0]
+        if p.prepared-p.consumed<allocated: raise HTTPException(409,'Updated surplus cannot be lower than quantities already allocated to donations')
+        if (str(p.record_date),p.meal_type,p.food_category)!=(old['record_date'],old['meal_type'],old['food_category']):
+          c.execute('UPDATE predictions SET actual_consumed=NULL WHERE provider_id=? AND prediction_date=? AND meal_type=? AND food_category=?',(u['id'],old['record_date'],old['meal_type'],old['food_category']))
+        c.execute('UPDATE food_records SET record_date=?,meal_type=?,food_category=?,prepared=?,consumed=?,surplus=?,event_indicator=?,holiday_indicator=?,weather=?,notes=? WHERE id=? AND provider_id=?',(str(p.record_date),p.meal_type,p.food_category,p.prepared,p.consumed,p.prepared-p.consumed,p.event_indicator,p.holiday_indicator,p.weather,p.notes,rid,u['id']))
+        c.execute('UPDATE predictions SET actual_consumed=? WHERE provider_id=? AND prediction_date=? AND meal_type=? AND food_category=?',(p.consumed,u['id'],str(p.record_date),p.meal_type,p.food_category))
+      return {'updated':True}
+    except Exception as e:
+      if 'UNIQUE' in str(e).upper(): raise HTTPException(409,'Another record already uses this date, meal and category')
+      raise
+@app.delete('/api/records/{rid}')
+def delete_record(rid:int,u=Depends(require('provider'))):
+    with connect() as c:
+      row=c.execute('SELECT id FROM food_records WHERE id=? AND provider_id=?',(rid,u['id'])).fetchone()
+      if not row: raise HTTPException(404,'Record not found')
+      if c.execute('SELECT COUNT(*) FROM donations WHERE food_record_id=?',(rid,)).fetchone()[0]:
+        raise HTTPException(409,'A food record referenced by a donation cannot be deleted; retain its audit history')
+      old=c.execute('SELECT record_date,meal_type,food_category FROM food_records WHERE id=?',(rid,)).fetchone()
+      c.execute('UPDATE predictions SET actual_consumed=NULL WHERE provider_id=? AND prediction_date=? AND meal_type=? AND food_category=?',(u['id'],old['record_date'],old['meal_type'],old['food_category']))
+      c.execute('DELETE FROM food_records WHERE id=? AND provider_id=?',(rid,u['id']))
+    return {'deleted':True}
+@app.post('/api/records/import')
+async def import_records(file:UploadFile=File(...),u=Depends(require('provider'))):
+    if not file.filename.lower().endswith('.csv'): raise HTTPException(415,'Upload a CSV file')
+    raw=await file.read()
+    if len(raw)>5_000_000: raise HTTPException(413,'CSV is larger than 5 MB')
+    try: rows=list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+    except Exception: raise HTTPException(400,'CSV must be UTF-8 encoded')
+    required={'record_date','meal_type','food_category','prepared','consumed'}
+    if not rows or not required.issubset(rows[0]): raise HTTPException(422,'CSV columns required: '+', '.join(sorted(required)))
+    inserted=0; skipped=0
+    with connect() as c:
+      for r in rows:
+        try:
+          prep=int(r['prepared']); cons=int(r['consumed']); dt=date.fromisoformat(r['record_date'])
+          meal=(r['meal_type'] or '').strip(); category=(r['food_category'] or 'General').strip()
+          event=int(r.get('event_indicator') or 0); holiday=int(r.get('holiday_indicator') or 0)
+          if prep<=0 or cons<0 or cons>prep or dt>date.today(): raise ValueError()
+          if meal not in ('Breakfast','Lunch','Dinner') or not category or event not in (0,1) or holiday not in (0,1): raise ValueError()
+          cur=c.execute('INSERT OR IGNORE INTO food_records(provider_id,record_date,meal_type,food_category,prepared,consumed,surplus,event_indicator,holiday_indicator,weather,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(u['id'],str(dt),meal,category,prep,cons,prep-cons,event,holiday,r.get('weather'),r.get('notes')))
+          inserted+=cur.rowcount; skipped+=1-cur.rowcount
+          if cur.rowcount: c.execute('UPDATE predictions SET actual_consumed=? WHERE provider_id=? AND prediction_date=? AND meal_type=? AND food_category=?',(cons,u['id'],str(dt),meal,category))
+        except Exception: skipped+=1
+    return {'inserted':inserted,'skipped_invalid_or_duplicate':skipped}
+@app.get('/api/records/export')
+def export_records(u=Depends(require('provider'))):
+    with connect() as c: rows=c.execute('SELECT record_date,meal_type,food_category,prepared,consumed,surplus,event_indicator,holiday_indicator,weather,notes FROM food_records WHERE provider_id=? ORDER BY record_date',(u['id'],)).fetchall()
+    out=io.StringIO(); w=csv.writer(out); w.writerow(['record_date','meal_type','food_category','prepared','consumed','surplus','event_indicator','holiday_indicator','weather','notes']); w.writerows([tuple(r) for r in rows])
+    return StreamingResponse(iter([out.getvalue()]),media_type='text/csv',headers={'Content-Disposition':'attachment; filename=foodbridge_records.csv'})
+
+@app.post('/api/ml/train')
+def train_model(u=Depends(require('provider'))):
+    with connect() as c: records=[dict(x) for x in c.execute('SELECT record_date,meal_type,food_category,prepared,consumed,surplus,event_indicator,holiday_indicator FROM food_records WHERE provider_id=? ORDER BY record_date,id',(u['id'],)).fetchall()]
+    result=train(records,u['id'])
+    if result.get('trained'):
+      m=result['metrics']
+      with connect() as c: c.execute('INSERT INTO model_evaluations(provider_id,model_version,training_date,mae,rmse,r2,training_records,testing_records,model_path) VALUES(?,?,?,?,?,?,?,?,?)',(u['id'],result['version'],date.today().isoformat(),m['mae'],m['rmse'],m['r2'],m['training_records'],m['testing_records'],result['model_path']))
+    return result
+@app.post('/api/predictions')
+def make_prediction(p:PredictInput,u=Depends(require('provider'))):
+    if p.prediction_date<date.today(): raise HTTPException(422,'Prediction date must be today or in the future')
+    if p.meal_type not in ('Breakfast','Lunch','Dinner') or not p.food_category.strip(): raise HTTPException(422,'Select a valid meal type and food category')
+    with connect() as c:
+      records=[dict(x) for x in c.execute('SELECT record_date,meal_type,food_category,prepared,consumed,surplus,event_indicator,holiday_indicator FROM food_records WHERE provider_id=? ORDER BY record_date,id',(u['id'],)).fetchall()]
+      settings={x['key']:x['value'] for x in c.execute('SELECT * FROM app_settings')}
+    demand,source,explanation=predict(records,u['id'],str(p.prediction_date),p.meal_type,p.food_category,p.event_indicator,p.holiday_indicator)
+    low=float(settings.get('low_risk_percent',5)); medium=float(settings.get('medium_risk_percent',15))
+    if medium<low: medium=low
+    calc=scenario(demand,p.planned_preparation,float(settings.get('safety_buffer_percent',3)),low,medium)
+    full=f"{explanation} Expected demand is about {round(demand)} meals; planned preparation is {p.planned_preparation}; estimated surplus is {calc['estimated_surplus']}."
+    with connect() as c:
+      c.execute('INSERT INTO predictions(provider_id,prediction_date,meal_type,food_category,planned_preparation,predicted_demand,estimated_surplus,recommended_preparation,waste_percentage,risk_level,model_version,prediction_source,explanation,potential_prevention) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(u['id'],str(p.prediction_date),p.meal_type,p.food_category,p.planned_preparation,demand,calc['estimated_surplus'],calc['recommended_preparation'],calc['waste_percentage'],calc['risk_level'], 'rf-v1' if source=='Random Forest' else 'baseline-v1',source,full,max(0,calc['estimated_surplus']-max(0,calc['recommended_preparation']-demand))))
+      notify(c,u['id'],'Prediction generated',full,'prediction_generated')
+      if calc['risk_level'] in ('High','Medium'): notify(c,u['id'],f"{calc['risk_level']} food waste risk",full,'predictive_alert')
+      else: notify(c,u['id'],'Low risk informational alert',full,'low_risk_alert')
+    return {**calc,'prediction_date':str(p.prediction_date),'meal_type':p.meal_type,'food_category':p.food_category,'model_status':source,'explanation':full,'donation_created':False}
+@app.get('/api/predictions')
+def get_predictions(u=Depends(require('provider'))):
+    with connect() as c: return [dict(x) for x in c.execute('SELECT * FROM predictions WHERE provider_id=? ORDER BY created_at DESC LIMIT 100',(u['id'],)).fetchall()]
+@app.post('/api/simulator')
+def simulator(body:dict,u=Depends(require('provider'))):
+    demand=float(body.get('predicted_demand',0)); quantities=body.get('quantities',[200,180,160,150])
+    with connect() as c: settings={x['key']:x['value'] for x in c.execute('SELECT * FROM app_settings')}
+    low=float(settings.get('low_risk_percent',5)); medium=max(low,float(settings.get('medium_risk_percent',15))); buffer=float(settings.get('safety_buffer_percent',3)); base=max(0,demand)
+    if len(quantities)>20: raise HTTPException(422,'Maximum 20 scenarios')
+    if demand<0 or any(float(q)<0 for q in quantities): raise HTTPException(422,'Demand and preparation quantities must be non-negative')
+    reference=int(quantities[0]) if quantities else 0
+    return [scenario(base,int(q),buffer,low,medium,reference) for q in quantities]
+
+@app.post('/api/donations')
+def create_donation(p:DonationInput,u=Depends(require('provider'))):
+    if p.meal_type not in ('Breakfast','Lunch','Dinner') or p.food_type not in ('Vegetarian','Non-vegetarian'): raise HTTPException(422,'Select a valid meal type and food classification')
+    if not all(str(v).strip() for v in (p.food_name,p.food_category,p.storage_method,p.pickup_location,p.contact_information)): raise HTTPException(422,'Food, category, storage, pickup location and contact details are required')
+    if not all(str(v).strip() for v in [p.food_name,p.food_category,p.storage_method,p.pickup_location,p.contact_information]): raise HTTPException(422,'Food name, category, storage, pickup location and contact are required')
+    if not p.provider_verified: raise HTTPException(422,'Confirm that the food is actually prepared and the quantity is verified before publishing')
+    with connect() as c:
+      record=c.execute('SELECT * FROM food_records WHERE id=? AND provider_id=?',(p.food_record_id,u['id'])).fetchone()
+      if not record: raise HTTPException(422,'Select one of your actual food-preparation records')
+      if date.fromisoformat(record['record_date'])>date.today(): raise HTTPException(422,'Donation must be linked to an actual, non-future food record')
+      if p.meal_type!=record['meal_type'] or p.food_category!=record['food_category'] or p.preparation_time.date()!=date.fromisoformat(record['record_date']): raise HTTPException(422,'Donation meal, category and preparation date must match the actual food record')
+      already=c.execute("SELECT COALESCE(SUM(quantity),0) FROM donations WHERE food_record_id=? AND status NOT IN ('Cancelled','Rejected','Expired')",(p.food_record_id,)).fetchone()[0]
+      if p.quantity>record['surplus']-already: raise HTTPException(422,f'Only {max(0,record["surplus"]-already)} unallocated surplus meals remain in that record')
+    prep,pickup_start,pickup_deadline,safe_deadline=map(utc_dt,[p.preparation_time,p.pickup_start,p.pickup_deadline,p.safe_consumption_deadline])
+    if prep>datetime.now(timezone.utc): raise HTTPException(422,'Preparation time cannot be in the future for an actual-surplus donation')
+    if safe_deadline<=prep or pickup_deadline>safe_deadline or pickup_start>pickup_deadline or pickup_start<prep: raise HTTPException(422,'Check preparation, pickup and safe-consumption times')
+    if safe_deadline<=datetime.now(timezone.utc) or pickup_deadline<=datetime.now(timezone.utc): raise HTTPException(422,'Pickup and safe-consumption deadlines must be in the future')
+    if not p.storage_method.strip() or p.storage_method.lower() in ('unknown','not known'): safety_review=1
+    else: safety_review=0
+    with connect() as c:
+      cur=c.execute('INSERT INTO donations(provider_id,food_record_id,food_name,food_category,quantity,meal_type,food_type,preparation_time,pickup_start,pickup_deadline,safe_consumption_deadline,storage_method,pickup_location,contact_information,notes,provider_verified,safety_review_required) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(u['id'],p.food_record_id,p.food_name,p.food_category,p.quantity,p.meal_type,p.food_type,prep.isoformat(),pickup_start.isoformat(),pickup_deadline.isoformat(),safe_deadline.isoformat(),p.storage_method,p.pickup_location,p.contact_information,p.notes,1,safety_review)); did=cur.lastrowid
+      c.execute('INSERT INTO donation_history(donation_id,updated_by,previous_status,new_status,remarks) VALUES(?,?,?,?,?)',(did,u['id'],None,'Available','Provider published verified actual surplus'))
+      notify(c,u['id'],'Actual surplus available',f'{p.quantity} verified meals were published as a donation listing.','actual_surplus')
+      if safety_review:
+        for admin in c.execute("SELECT id FROM users WHERE role='admin'").fetchall(): notify(c,admin['id'],'Donation needs manual review',f'{p.food_name} has unknown storage information. Review before NGO visibility.','safety_review')
+      for ngo in c.execute("SELECT n.user_id FROM ngos n JOIN users u ON u.id=n.user_id WHERE n.verification_status='verified' AND n.available_for_pickup=1 AND u.status='active'").fetchall(): notify(c,ngo['user_id'],'New food donation available',f'{p.food_name}: {p.quantity} meals available in {p.pickup_location}.','donation_available')
+    return {'id':did,'status':'Available','safety_review_required':bool(safety_review),'message':'Donation published. This listing is not a food-safety certification.'}
+@app.get('/api/donations')
+def browse_donations(status:Optional[str]=None,category:Optional[str]=None,meal_type:Optional[str]=None,city:Optional[str]=None,scope:Optional[str]=None,food_type:Optional[str]=None,min_quantity:Optional[int]=None,before:Optional[datetime]=None,u=Depends(current_user)):
+    with connect() as c:
+      expired=c.execute("SELECT id,provider_id,ngo_id,food_name,status FROM donations WHERE status IN ('Available','Accepted','Pickup Scheduled') AND safe_consumption_deadline<=?",(datetime.now(timezone.utc).isoformat(),)).fetchall()
+      for x in expired:
+        c.execute("UPDATE donations SET status='Expired' WHERE id=?",(x['id'],)); c.execute("INSERT INTO donation_history(donation_id,updated_by,previous_status,new_status,remarks) VALUES(?,?,?,?,?)",(x['id'],u['id'],x['status'],'Expired','Safe-consumption deadline passed'))
+        notify(c,x['provider_id'],'Donation expired',f'{x["food_name"]} passed its safe-consumption deadline.','donation_status')
+        if x['ngo_id']: notify(c,x['ngo_id'],'Donation expired',f'{x["food_name"]} passed its safe-consumption deadline.','donation_status')
+    with connect() as c:
+      upcoming=c.execute("SELECT id,ngo_id,provider_id,food_name,pickup_deadline FROM donations WHERE status='Pickup Scheduled' AND pickup_deadline>? AND pickup_deadline<=? AND ngo_id IS NOT NULL",(datetime.now(timezone.utc).isoformat(),(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat())).fetchall()
+      for x in upcoming:
+        exists=c.execute("SELECT 1 FROM notifications WHERE user_id=? AND notification_type='pickup_reminder' AND message LIKE ?",(x['ngo_id'],f'%#{x["id"]}%')).fetchone()
+        if not exists: notify(c,x['ngo_id'],'Pickup deadline approaching',f'Pickup for {x["food_name"]} (#{x["id"]}) is due by {x["pickup_deadline"]}.','pickup_reminder')
+    sql='SELECT d.*,p.organization_name,p.city AS provider_city FROM donations d JOIN providers p ON p.user_id=d.provider_id WHERE 1=1'; args=[]
+    if u['role']=='ngo':
+      with connect() as c: n=c.execute('SELECT verification_status FROM ngos WHERE user_id=?',(u['id'],)).fetchone()
+      if not n or n['verification_status']!='verified': return []
+      if scope=='collections': sql+=' AND d.ngo_id=?'; args.append(u['id'])
+      else: sql+=" AND d.status='Available' AND d.safe_consumption_deadline>? AND d.safety_review_required=0"; args.append(datetime.now(timezone.utc).isoformat())
+    elif u['role']=='provider': sql+=' AND d.provider_id=?'; args.append(u['id'])
+    if status: sql+=' AND d.status=?'; args.append(status)
+    if category: sql+=' AND d.food_category LIKE ?'; args.append('%'+category+'%')
+    if meal_type: sql+=' AND d.meal_type=?'; args.append(meal_type)
+    if city: sql+=' AND p.city LIKE ?'; args.append('%'+city+'%')
+    if food_type: sql+=' AND d.food_type=?'; args.append(food_type)
+    if min_quantity is not None: sql+=' AND d.quantity>=?'; args.append(min_quantity)
+    if before: sql+=' AND d.pickup_deadline<=?'; args.append(utc_dt(before).isoformat())
+    with connect() as c: return [dict(x) for x in c.execute(sql+' ORDER BY d.pickup_deadline',args).fetchall()]
+
+VALID_TRANSITIONS={'Available':{'Accepted','Cancelled','Expired','Rejected'},'Accepted':{'Pickup Scheduled','Cancelled','Rejected'},'Pickup Scheduled':{'Picked Up','Cancelled'},'Picked Up':{'Delivered'},'Delivered':{'Completed'},'Completed':set(),'Rejected':set(),'Cancelled':set(),'Expired':set()}
+def change_status(did,p,u):
+    if u['role']=='provider' and p.status!='Cancelled': raise HTTPException(403,'Providers may only cancel their own donation listings')
+    if u['role']=='ngo' and p.status not in ('Accepted','Rejected','Pickup Scheduled','Picked Up','Delivered','Completed'): raise HTTPException(403,'NGOs cannot perform this status action')
+    if u['role']=='admin' and p.status not in ('Cancelled','Expired','Rejected'): raise HTTPException(403,'Admins may only moderate or remove listings')
+    with connect() as c:
+      d=c.execute('SELECT * FROM donations WHERE id=?',(did,)).fetchone()
+      if not d: raise HTTPException(404,'Donation not found')
+      if u['role']=='provider' and d['provider_id']!=u['id']: raise HTTPException(403,'Not your donation')
+      if u['role']=='ngo' and d['ngo_id'] not in (None,u['id']): raise HTTPException(403,'Donation belongs to another NGO')
+      if u['role']=='ngo':
+        n=c.execute('SELECT verification_status FROM ngos WHERE user_id=?',(u['id'],)).fetchone()
+        if not n or n['verification_status']!='verified': raise HTTPException(403,'NGO verification is required')
+      old=d['status']; new=p.status
+      if new not in VALID_TRANSITIONS.get(old,set()): raise HTTPException(409,f'Invalid status transition: {old} → {new}')
+      if new=='Accepted':
+        now=datetime.now(timezone.utc)
+        if utc_dt(datetime.fromisoformat(d['safe_consumption_deadline']))<=now or utc_dt(datetime.fromisoformat(d['pickup_deadline']))<=now: raise HTTPException(409,'Donation pickup or safe-consumption deadline has passed')
+        # Atomic compare-and-set prevents two NGOs accepting the same donation.
+        cur=c.execute("UPDATE donations SET status=?,ngo_id=? WHERE id=? AND status='Available' AND ngo_id IS NULL",(new,u['id'],did))
+        if not cur.rowcount: raise HTTPException(409,'Donation was already accepted')
+      else:
+        if new=='Rejected' and u['role']=='ngo': c.execute('UPDATE donations SET status=?,ngo_id=? WHERE id=?',(new,u['id'],did))
+        elif new=='Pickup Scheduled':
+          if not p.pickup_time: raise HTTPException(422,'Pickup time is required when scheduling collection')
+          pickup=utc_dt(p.pickup_time); now=datetime.now(timezone.utc)
+          start=utc_dt(datetime.fromisoformat(d['pickup_start'])); deadline=utc_dt(datetime.fromisoformat(d['pickup_deadline']))
+          safe=utc_dt(datetime.fromisoformat(d['safe_consumption_deadline']))
+          if pickup<start or pickup>deadline or pickup>safe or pickup<=now: raise HTTPException(422,'Scheduled pickup must be in the future and within the stated pickup and safe-consumption window')
+          c.execute('UPDATE donations SET status=?,scheduled_pickup_at=? WHERE id=?',(new,pickup.isoformat(),did))
+        else: c.execute('UPDATE donations SET status=? WHERE id=?',(new,did))
+      c.execute('INSERT INTO donation_history(donation_id,updated_by,previous_status,new_status,remarks) VALUES(?,?,?,?,?)',(did,u['id'],old,new,p.remarks))
+      recipient=d['provider_id'] if u['role']=='ngo' else d['ngo_id']
+      notify(c,recipient,f'Donation {new}',f'{d["food_name"]} is now {new}. {p.remarks}','donation_status')
+    return {'id':did,'previous_status':old,'status':new}
+@app.post('/api/donations/{did}/status')
+def update_donation(did:int,p:StatusInput,u=Depends(current_user)):
+    if u['role'] not in ('provider','ngo','admin'): raise HTTPException(403,'Not allowed')
+    return change_status(did,p,u)
+@app.get('/api/donations/{did}/history')
+def donation_history(did:int,u=Depends(current_user)):
+    with connect() as c:
+      d=c.execute('SELECT * FROM donations WHERE id=?',(did,)).fetchone()
+      if not d: raise HTTPException(404,'Donation not found')
+      if u['role']=='provider' and d['provider_id']!=u['id']: raise HTTPException(403,'Not your donation')
+      if u['role']=='ngo' and d['ngo_id']!=u['id']: raise HTTPException(403,'Not your collection')
+      return [dict(x) for x in c.execute('SELECT h.*,u.name AS actor FROM donation_history h JOIN users u ON u.id=h.updated_by WHERE donation_id=? ORDER BY updated_at',(did,)).fetchall()]
+
+@app.get('/api/matches/{did}')
+def matches(did:int,u=Depends(require('provider','admin'))):
+    with connect() as c:
+      d=c.execute('SELECT * FROM donations WHERE id=?',(did,)).fetchone()
+      if not d: raise HTTPException(404,'Donation not found')
+      if u['role']=='provider' and d['provider_id']!=u['id']: raise HTTPException(403,'Not your donation')
+      ngos=c.execute("SELECT n.*,u.name,u.email FROM ngos n JOIN users u ON u.id=n.user_id WHERE n.verification_status='verified' AND n.available_for_pickup=1 AND u.status='active'").fetchall()
+      settings={x['key']:float(x['value']) for x in c.execute('SELECT * FROM app_settings')}
+    weights=[settings.get('match_location_weight',35),settings.get('match_capacity_weight',25),settings.get('match_requirement_weight',20),settings.get('match_availability_weight',10),settings.get('match_preference_weight',10)]; total=sum(weights) or 100
+    out=[]
+    for n in ngos:
+      city_text=(n['city']+' '+n['service_area']).strip().lower()
+      city_match=1 if any(part and part in d['pickup_location'].lower() for part in [n['city'].strip().lower(),n['service_area'].strip().lower()]) else 0.5
+      capacity=min(1,n['collection_capacity']/max(1,d['quantity']))
+      beneficiary_fit=min(1,n['people_served']/max(1,d['quantity']))
+      capacity=(capacity+beneficiary_fit)/2
+      req=1 if d['food_category'].lower() in (n['food_requirements']+' '+n['preferred_categories']).lower() else 0.5
+      pref=1 if d['food_type'].lower() in (n['preferred_categories']+' '+n['food_requirements']).lower() else 0.5
+      score=(city_match*weights[0]+capacity*weights[1]+req*weights[2]+1*weights[3]+pref*weights[4])/total*100
+      out.append({'ngo_id':n['user_id'],'ngo_name':n['ngo_name'],'score':round(score,1),'reasons':[f"Location suitability: {city_match:.0%}",f"Capacity and reported beneficiary fit: {capacity:.0%}",f"Food requirement match: {req:.0%}",f"Preference match: {pref:.0%}",'NGO is verified and currently eligible']})
+    return sorted(out,key=lambda x:x['score'],reverse=True)
+
+@app.get('/api/notifications')
+def notifications(u=Depends(current_user)):
+    with connect() as c: return [dict(x) for x in c.execute('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100',(u['id'],)).fetchall()]
+@app.post('/api/notifications/{nid}/read')
+def mark_read(nid:int,u=Depends(current_user)):
+    with connect() as c: c.execute('UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?',(nid,u['id']))
+    return {'read':True}
+@app.post('/api/reports')
+def report(p:ReportInput,u=Depends(current_user)):
+    with connect() as c:
+      cur=c.execute('INSERT INTO user_reports(reporter_id,subject,details) VALUES(?,?,?)',(u['id'],p.subject,p.details))
+      for a in c.execute("SELECT id FROM users WHERE role='admin'").fetchall(): notify(c,a['id'],'New user report',p.subject,'user_report')
+    return {'id':cur.lastrowid,'status':'open'}
+
+@app.get('/api/ml/evaluations')
+def ml_evaluations(u=Depends(require('provider'))):
+    with connect() as c: return [dict(x) for x in c.execute('SELECT model_version,training_date,mae,rmse,r2,training_records,testing_records FROM model_evaluations WHERE provider_id=? ORDER BY id DESC',(u['id'],)).fetchall()]
+
+@app.get('/api/analytics/trends')
+def analytics_trends(u=Depends(current_user)):
+    with connect() as c:
+      if u['role']=='provider':
+        rows=c.execute('SELECT record_date, SUM(prepared) prepared, SUM(consumed) consumed, SUM(surplus) surplus FROM food_records WHERE provider_id=? GROUP BY record_date ORDER BY record_date DESC LIMIT 30',(u['id'],)).fetchall()
+        preds=c.execute('SELECT prediction_date,predicted_demand,actual_consumed FROM predictions WHERE provider_id=? AND actual_consumed IS NOT NULL ORDER BY prediction_date DESC LIMIT 30',(u['id'],)).fetchall()
+        donations=c.execute("SELECT substr(created_at,1,10) record_date,SUM(quantity) completed_quantity FROM donations WHERE provider_id=? AND status='Completed' GROUP BY substr(created_at,1,10) ORDER BY record_date DESC LIMIT 30",(u['id'],)).fetchall()
+        return {'records':[dict(x) for x in reversed(rows)],'prediction_comparison':[dict(x) for x in reversed(preds)],'completed_donations':[dict(x) for x in reversed(donations)]}
+      return {'records':[],'prediction_comparison':[]}
+
+@app.get('/api/analytics')
+def analytics(u=Depends(current_user)):
+    with connect() as c:
+      if u['role']=='provider':
+        rec=c.execute('SELECT COALESCE(SUM(prepared),0) prepared,COALESCE(SUM(consumed),0) consumed,COALESCE(SUM(surplus),0) surplus FROM food_records WHERE provider_id=?',(u['id'],)).fetchone()
+        don=c.execute("SELECT COUNT(*) total,COALESCE(SUM(CASE WHEN status='Completed' THEN quantity ELSE 0 END),0) donated,SUM(CASE WHEN status NOT IN ('Completed','Cancelled','Rejected','Expired') THEN 1 ELSE 0 END) active,SUM(CASE WHEN status='Completed' THEN 1 ELSE 0 END) completed FROM donations WHERE provider_id=?",(u['id'],)).fetchone()
+        pred=c.execute('SELECT COALESCE(SUM(potential_prevention),0) prevention FROM predictions p WHERE provider_id=? AND id=(SELECT MAX(p2.id) FROM predictions p2 WHERE p2.provider_id=p.provider_id AND p2.prediction_date=p.prediction_date AND p2.meal_type=p.meal_type AND p2.food_category=p.food_category)',(u['id'],)).fetchone()
+        accuracy=c.execute('SELECT AVG(ABS(predicted_demand-actual_consumed)) mae,COUNT(*) count FROM predictions WHERE provider_id=? AND actual_consumed IS NOT NULL',(u['id'],)).fetchone()
+        remaining=c.execute("SELECT COALESCE(SUM(fr.surplus-COALESCE((SELECT SUM(d.quantity) FROM donations d WHERE d.food_record_id=fr.id AND d.status='Completed'),0)),0) FROM food_records fr WHERE fr.provider_id=?",(u['id'],)).fetchone()[0]
+        return {'remaining_actual_waste':max(0,remaining),'prediction_mae':round(accuracy['mae'],2) if accuracy['mae'] is not None else None,'prediction_comparisons':accuracy['count'],'prepared':rec['prepared'],'consumed':rec['consumed'],'actual_surplus':rec['surplus'],'estimated_potential_prevention':pred['prevention'] or 0,'confirmed_donated_quantity':don['donated'],'donations_total':don['total'],'active_donations':don['active'] or 0,'completed_donations':don['completed'] or 0}
+      if u['role']=='ngo':
+        with connect() as c2:
+          row=c2.execute("SELECT COUNT(*) total,COALESCE(SUM(CASE WHEN status='Completed' THEN quantity ELSE 0 END),0) collected,SUM(CASE WHEN status NOT IN ('Completed','Cancelled','Rejected','Expired') THEN 1 ELSE 0 END) active FROM donations WHERE ngo_id=?",(u['id'],)).fetchone()
+        n=c.execute('SELECT people_served FROM ngos WHERE user_id=?',(u['id'],)).fetchone()
+        return {'donations_received':row['total'],'total_quantity_collected':row['collected'],'active_collections':row['active'] or 0,'people_served_reported':n['people_served'] if n else 0}
+      return platform_analytics(c)
+def platform_analytics(c):
+    return {'registered_providers':c.execute("SELECT COUNT(*) FROM users WHERE role='provider'").fetchone()[0], 'verified_ngos':c.execute("SELECT COUNT(*) FROM ngos WHERE verification_status='verified'").fetchone()[0], 'donations_published':c.execute('SELECT COUNT(*) FROM donations').fetchone()[0], 'completed_donations':c.execute("SELECT COUNT(*) FROM donations WHERE status='Completed'").fetchone()[0], 'confirmed_donated_quantity':c.execute("SELECT COALESCE(SUM(quantity),0) FROM donations WHERE status='Completed'").fetchone()[0], 'prediction_count':c.execute('SELECT COUNT(*) FROM predictions').fetchone()[0], 'people_served_reported':c.execute("SELECT COALESCE(SUM(people_served),0) FROM ngos WHERE verification_status='verified'").fetchone()[0], 'remaining_actual_waste':c.execute("SELECT COALESCE(SUM(fr.surplus-COALESCE((SELECT SUM(d.quantity) FROM donations d WHERE d.food_record_id=fr.id AND d.status='Completed'),0)),0) FROM food_records fr").fetchone()[0]}
+
+@app.get('/api/admin/overview')
+def admin_overview(u=Depends(require('admin'))):
+    with connect() as c:
+      return {'platform':platform_analytics(c),'users':[dict(x) for x in c.execute('SELECT id,name,email,role,status,created_at FROM users ORDER BY created_at DESC').fetchall()], 'ngo_applications':[dict(x) for x in c.execute("SELECT n.*,u.email,u.name FROM ngos n JOIN users u ON u.id=n.user_id WHERE n.verification_status='pending'").fetchall()], 'donations':[dict(x) for x in c.execute('SELECT * FROM donations ORDER BY created_at DESC').fetchall()], 'predictions':[dict(x) for x in c.execute('SELECT p.*,u.email FROM predictions p JOIN users u ON u.id=p.provider_id ORDER BY p.created_at DESC LIMIT 100').fetchall()], 'reports':[dict(x) for x in c.execute("SELECT r.*,u.email FROM user_reports r JOIN users u ON u.id=r.reporter_id WHERE r.status='open'").fetchall()]}
+@app.post('/api/admin/ngos/{uid}/verify')
+def verify_ngo(uid:int,body:dict,u=Depends(require('admin'))):
+    status=body.get('status')
+    if status not in ('verified','rejected'): raise HTTPException(422,'status must be verified or rejected')
+    with connect() as c:
+      cur=c.execute('UPDATE ngos SET verification_status=? WHERE user_id=?',(status,uid))
+      if not cur.rowcount: raise HTTPException(404,'NGO not found')
+      notify(c,uid,'NGO application '+status,'Your NGO application is '+status+'.','verification')
+    return {'user_id':uid,'verification_status':status}
+@app.post('/api/admin/users/{uid}/status')
+def user_status(uid:int,body:dict,u=Depends(require('admin'))):
+    status=body.get('status')
+    if status not in ('active','suspended'): raise HTTPException(422,'status must be active or suspended')
+    if uid==u['id']: raise HTTPException(400,'You cannot suspend your own admin account')
+    with connect() as c:
+      cur=c.execute('UPDATE users SET status=? WHERE id=?',(status,uid))
+      if not cur.rowcount: raise HTTPException(404,'User not found')
+    return {'user_id':uid,'status':status}
+@app.post('/api/admin/donations/{did}/remove')
+def admin_remove(did:int,body:dict,u=Depends(require('admin'))):
+    with connect() as c:
+      d=c.execute('SELECT * FROM donations WHERE id=?',(did,)).fetchone()
+      if not d: raise HTTPException(404,'Donation not found')
+      old=d['status']; c.execute("UPDATE donations SET status='Cancelled' WHERE id=?",(did,)); c.execute('INSERT INTO donation_history(donation_id,updated_by,previous_status,new_status,remarks) VALUES(?,?,?,?,?)',(did,u['id'],old,'Cancelled',body.get('reason','Removed by administrator')))
+      notify(c,d['provider_id'],'Donation removed','An administrator removed your donation listing.','admin_action')
+      if d['ngo_id']: notify(c,d['ngo_id'],'Donation removed','An administrator removed a donation you had accepted.','admin_action')
+    return {'removed':True}
+@app.post('/api/admin/donations/{did}/safety-review')
+def safety_review(did:int,body:dict,u=Depends(require('admin'))):
+    approved=bool(body.get('approved'))
+    with connect() as c:
+      d=c.execute('SELECT * FROM donations WHERE id=?',(did,)).fetchone()
+      if not d: raise HTTPException(404,'Donation not found')
+      c.execute('UPDATE donations SET safety_review_required=? WHERE id=?',(0 if approved else 1,did))
+      c.execute('INSERT INTO donation_history(donation_id,updated_by,previous_status,new_status,remarks) VALUES(?,?,?,?,?)',(did,u['id'],d['status'],d['status'],'Admin manually reviewed storage/safety details: '+('approved for NGO visibility' if approved else 'remains restricted')))
+      notify(c,d['provider_id'],'Donation safety review updated','Administrator marked the listing '+('reviewed; it may be shown to eligible NGOs.' if approved else 'for continued manual review.'),'admin_action')
+    return {'id':did,'safety_review_required':not approved}
+
+@app.post('/api/admin/reports/{rid}/resolve')
+def resolve_report(rid:int,u=Depends(require('admin'))):
+    with connect() as c:
+      cur=c.execute("UPDATE user_reports SET status='resolved' WHERE id=? AND status='open'",(rid,))
+      if not cur.rowcount: raise HTTPException(404,'Open report not found')
+    return {'id':rid,'status':'resolved'}
+
+@app.get('/api/admin/settings')
+def get_settings(u=Depends(require('admin'))):
+    with connect() as c: return {x['key']:x['value'] for x in c.execute('SELECT * FROM app_settings')}
+@app.put('/api/admin/settings')
+def set_settings(body:dict,u=Depends(require('admin'))):
+    allowed={'safety_buffer_percent','low_risk_percent','medium_risk_percent','match_location_weight','match_capacity_weight','match_requirement_weight','match_availability_weight','match_preference_weight'}
+    low=float(body.get('low_risk_percent',5)); medium=float(body.get('medium_risk_percent',15))
+    if medium<low: raise HTTPException(422,'Medium risk threshold must be greater than or equal to low risk threshold')
+    with connect() as c:
+      for k,v in body.items():
+        if k not in allowed: continue
+        try: val=float(v)
+        except: raise HTTPException(422,f'{k} must be numeric')
+        if val<0 or val>100: raise HTTPException(422,f'{k} must be between 0 and 100')
+        c.execute('INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(k,str(val)))
+    return {'updated':True}
+@app.get('/api/alerts')
+def alerts(u=Depends(current_user)):
+    with connect() as c:
+      if u['role']=='provider': rows=c.execute("SELECT * FROM notifications WHERE user_id=? AND notification_type IN ('predictive_alert','donation_status') ORDER BY created_at DESC",(u['id'],)).fetchall()
+      else: rows=c.execute('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC',(u['id'],)).fetchall()
+    return [dict(x) for x in rows]
