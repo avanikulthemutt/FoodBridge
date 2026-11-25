@@ -1,0 +1,738 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>FoodBridge | AI-Powered Food Rescue</title>
+
+    <meta name="description" content="FoodBridge connects surplus food donors with NGOs using intelligent AI agents.">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+
+<header>
+    <div class="wrapper navbar">
+
+        <a href="#" class="logo">FoodBridge<span>.</span></a>
+
+        <nav class="nav-links">
+            <a href="#how">How it works</a>
+            <a href="#who">For donors</a>
+            <a href="#who">For NGOs</a>
+            <a href="#impact">Impact</a>
+            <a href="#agents">AI Agents</a>
+        </nav>
+
+        <div class="nav-actions">
+            <a href="#roles" class="btn btn-outline">Log in</a>
+            <a href="#roles" class="btn btn-primary">Donate food</a>
+        </div>
+
+    </div>
+</header>
+
+
+<main>
+
+<!-- ================= HERO ================= -->
+
+<section class="wrapper hero">
+
+    <div class="hero-content">
+
+        <p class="section-label">AI-powered food rescue ecosystem</p>
+
+        <h1>
+            Surplus food.<br>
+            Smarter decisions.<br>
+            Zero waste.
+        </h1>
+
+        <p class="hero-description">
+            FoodBridge connects restaurants, hotels, canteens and event
+            organizers with nearby NGOs. Intelligent AI agents identify
+            surplus food, recommend suitable recipients and coordinate
+            food rescue from donation to delivery.
+        </p>
+
+        <div class="hero-buttons">
+            <a href="#roles" class="btn btn-primary">
+                I have surplus food
+            </a>
+
+            <a href="#roles" class="btn btn-outline">
+                I represent an NGO
+            </a>
+        </div>
+
+        <div class="hero-note">
+            <span class="hero-dot"></span>
+            Intelligent food rescue, powered by AI agents
+        </div>
+
+    </div>
+
+
+    <div class="live-match">
+
+        <div class="match-top">
+            <span>AI LIVE MATCH PREVIEW</span>
+            <span class="match-status">DEMO</span>
+        </div>
+
+        <h2>Food rescue in action</h2>
+
+        <p class="match-description">
+            An example of how FoodBridge connects a donor with a suitable NGO.
+        </p>
+
+        <div class="match-route">
+            <div class="route-icon">D</div>
+            <div>
+                <small>FOOD DONOR</small>
+                <strong>Restaurant partner</strong>
+            </div>
+        </div>
+
+        <div class="route-line"></div>
+
+        <div class="match-route">
+            <div class="route-icon ngo-icon">N</div>
+            <div>
+                <small>RECOMMENDED NGO</small>
+                <strong>Community food centre</strong>
+            </div>
+        </div>
+
+        <div class="match-details">
+
+            <div class="match-detail">
+                <small>Quantity</small>
+                <strong>120 meals</strong>
+            </div>
+
+            <div class="match-detail">
+                <small>Freshness</small>
+                <strong>4 hours</strong>
+            </div>
+
+            <div class="match-detail">
+                <small>AI match score</small>
+                <strong>96%</strong>
+            </div>
+
+            <div class="match-detail">
+                <small>Distance</small>
+                <strong>2.4 km</strong>
+            </div>
+
+        </div>
+
+        <div class="map-placeholder">
+            <div>
+                <span class="map-symbol">⌖</span>
+                <strong>Pickup route preview</strong>
+                <small>Illustrative route – not live tracking</small>
+            </div>
+        </div>
+
+        <p class="demo-note">
+            Illustrative demonstration data
+        </p>
+
+    </div>
+
+</section>
+
+
+<!-- ================= IMPACT ================= -->
+
+<section class="impact" id="impact">
+
+    <div class="wrapper impact-grid">
+
+        <div class="impact-item">
+            <strong>00,000</strong>
+            <span>Meals rescued</span>
+        </div>
+
+        <div class="impact-item">
+            <strong>000</strong>
+            <span>Partner donors</span>
+        </div>
+
+        <div class="impact-item">
+            <strong>000</strong>
+            <span>NGOs served</span>
+        </div>
+
+        <div class="impact-item">
+            <strong>00 t</strong>
+            <span>Waste diverted</span>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= HOW IT WORKS ================= -->
+
+<section class="section wrapper" id="how">
+
+    <p class="section-label">The process</p>
+
+    <h2 class="section-heading">
+        From surplus to served<br>
+        in four simple steps.
+    </h2>
+
+    <div class="grid-four">
+
+        <div class="card">
+            <span class="card-number">01</span>
+            <h3>List surplus</h3>
+            <p>
+                Donors submit food type, quantity, freshness and
+                pickup availability through the platform.
+            </p>
+        </div>
+
+        <div class="card">
+            <span class="card-number">02</span>
+            <h3>AI matches</h3>
+            <p>
+                The NGO Matching Agent evaluates nearby NGOs using
+                food requirements, capacity and distance.
+            </p>
+        </div>
+
+        <div class="card">
+            <span class="card-number">03</span>
+            <h3>Confirm pickup</h3>
+            <p>
+                The Pickup Coordination Agent proposes collection
+                arrangements for donor and NGO confirmation.
+            </p>
+        </div>
+
+        <div class="card">
+            <span class="card-number">04</span>
+            <h3>Track impact</h3>
+            <p>
+                The Impact Monitoring Agent records completed
+                donations, meals rescued and waste diverted.
+            </p>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= WHO IT IS FOR ================= -->
+
+<section class="section wrapper" id="who">
+
+    <p class="section-label">Our community</p>
+
+    <h2 class="section-heading">
+        One platform,<br>
+        every kind of surplus.
+    </h2>
+
+    <div class="grid-four">
+
+        <div class="card">
+            <span class="audience-icon">01</span>
+            <h3>Restaurants</h3>
+            <p>Turn end-of-day extras into meals for people in need.</p>
+        </div>
+
+        <div class="card">
+            <span class="audience-icon">02</span>
+            <h3>Hotels</h3>
+            <p>Redirect suitable buffet and banquet surplus.</p>
+        </div>
+
+        <div class="card">
+            <span class="audience-icon">03</span>
+            <h3>College canteens</h3>
+            <p>Share suitable surplus after mess hours.</p>
+        </div>
+
+        <div class="card">
+            <span class="audience-icon">04</span>
+            <h3>Event organizers</h3>
+            <p>Rescue suitable food after weddings and events.</p>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= AI AGENT CONTROL CENTRE ================= -->
+
+<section class="agent-section" id="agents">
+
+    <div class="wrapper">
+
+        <div class="agent-heading">
+
+            <div>
+                <p class="section-label">The intelligence behind FoodBridge</p>
+
+                <h2 class="section-heading">
+                    Meet your AI<br>
+                    agent ecosystem.
+                </h2>
+
+                <p class="agent-intro">
+                    Four specialized agents work together to streamline
+                    food rescue, from identifying surplus to monitoring
+                    the impact of completed donations.
+                </p>
+            </div>
+
+            <div class="agent-badge">
+                <span class="agent-pulse"></span>
+                AGENT CONTROL CENTRE
+            </div>
+
+        </div>
+
+
+        <div class="agent-grid">
+
+            <!-- AGENT 1 -->
+
+            <article class="agent-card">
+
+                <div class="agent-card-top">
+                    <div class="agent-icon">01</div>
+                    <span class="agent-state">AI AGENT</span>
+                </div>
+
+                <h3>Food Detection Agent</h3>
+
+                <p>
+                    Processes incoming food listings and evaluates
+                    food type, quantity, freshness and available
+                    pickup information.
+                </p>
+
+                <div class="agent-capability">
+                    <span>Food classification</span>
+                    <span>Freshness assessment</span>
+                    <span>Quantity processing</span>
+                </div>
+
+                <div class="agent-footer">
+                    <span>Agent 01</span>
+                    <strong>Detection</strong>
+                </div>
+
+            </article>
+
+
+            <!-- AGENT 2 -->
+
+            <article class="agent-card">
+
+                <div class="agent-card-top">
+                    <div class="agent-icon">02</div>
+                    <span class="agent-state">AI AGENT</span>
+                </div>
+
+                <h3>NGO Matching Agent</h3>
+
+                <p>
+                    Evaluates available NGOs and recommends suitable
+                    matches based on food requirements, capacity,
+                    urgency and distance.
+                </p>
+
+                <div class="agent-capability">
+                    <span>NGO recommendations</span>
+                    <span>Capacity evaluation</span>
+                    <span>Match ranking</span>
+                </div>
+
+                <div class="agent-footer">
+                    <span>Agent 02</span>
+                    <strong>Matching</strong>
+                </div>
+
+            </article>
+
+
+            <!-- AGENT 3 -->
+
+            <article class="agent-card">
+
+                <div class="agent-card-top">
+                    <div class="agent-icon">03</div>
+                    <span class="agent-state">AI AGENT</span>
+                </div>
+
+                <h3>Pickup Coordination Agent</h3>
+
+                <p>
+                    Helps coordinate collection requests, proposes
+                    pickup schedules and manages confirmation
+                    between donors and NGOs.
+                </p>
+
+                <div class="agent-capability">
+                    <span>Pickup scheduling</span>
+                    <span>Confirmation requests</span>
+                    <span>Coordination</span>
+                </div>
+
+                <div class="agent-footer">
+                    <span>Agent 03</span>
+                    <strong>Coordination</strong>
+                </div>
+
+            </article>
+
+
+            <!-- AGENT 4 -->
+
+            <article class="agent-card">
+
+                <div class="agent-card-top">
+                    <div class="agent-icon">04</div>
+                    <span class="agent-state">AI AGENT</span>
+                </div>
+
+                <h3>Impact Monitoring Agent</h3>
+
+                <p>
+                    Tracks completed donations and maintains
+                    information about meals rescued and estimated
+                    food waste diverted.
+                </p>
+
+                <div class="agent-capability">
+                    <span>Donation tracking</span>
+                    <span>Impact calculations</span>
+                    <span>Activity reporting</span>
+                </div>
+
+                <div class="agent-footer">
+                    <span>Agent 04</span>
+                    <strong>Monitoring</strong>
+                </div>
+
+            </article>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= AI MATCHING ================= -->
+
+<section class="section wrapper" id="matching">
+
+    <div class="matching-section">
+
+        <div>
+
+            <p class="section-label">Intelligent decision making</p>
+
+            <h2 class="section-heading">
+                Not just a match.<br>
+                The right match.
+            </h2>
+
+            <p class="matching-intro">
+                FoodBridge's NGO Matching Agent evaluates multiple
+                signals before recommending a recipient. Its goal
+                is to help suitable food reach the right organization
+                while it is still safe to consume.
+            </p>
+
+            <a href="#roles" class="btn btn-primary">
+                Explore FoodBridge
+            </a>
+
+        </div>
+
+
+        <div class="signal-list">
+
+            <div class="signal">
+                <strong>Food quantity</strong>
+                <span>Meals vs NGO capacity</span>
+            </div>
+
+            <div class="signal">
+                <strong>Freshness</strong>
+                <span>Safe-to-eat window</span>
+            </div>
+
+            <div class="signal">
+                <strong>Urgency</strong>
+                <span>Time available for pickup</span>
+            </div>
+
+            <div class="signal">
+                <strong>Location</strong>
+                <span>Distance and route</span>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= AGENT ACTIVITY TIMELINE ================= -->
+
+<section class="activity-section">
+
+    <div class="wrapper">
+
+        <p class="section-label">Inside the workflow</p>
+
+        <h2 class="section-heading">
+            From donation to delivery.<br>
+            Every action has a purpose.
+        </h2>
+
+        <p class="activity-description">
+            Explore an example of how FoodBridge agents coordinate
+            a food rescue workflow.
+        </p>
+
+
+        <div class="activity-panel">
+
+            <div class="activity-panel-header">
+                <div>
+                    <h3>Agent Activity Timeline</h3>
+                    <p>Illustrative workflow demonstration</p>
+                </div>
+
+                <span class="workflow-tag">DEMO WORKFLOW</span>
+            </div>
+
+
+            <div class="timeline">
+
+                <div class="timeline-item completed">
+                    <div class="timeline-marker">01</div>
+
+                    <div class="timeline-content">
+                        <span class="timeline-label">INPUT RECEIVED</span>
+                        <h4>Food donation submitted</h4>
+                        <p>
+                            A restaurant submits details about its
+                            available surplus food.
+                        </p>
+                    </div>
+
+                    <span class="timeline-status">Received</span>
+                </div>
+
+
+                <div class="timeline-item completed">
+                    <div class="timeline-marker">02</div>
+
+                    <div class="timeline-content">
+                        <span class="timeline-label">FOOD DETECTION AGENT</span>
+                        <h4>Food information processed</h4>
+                        <p>
+                            Food type, quantity and freshness
+                            information are evaluated.
+                        </p>
+                    </div>
+
+                    <span class="timeline-status">Processed</span>
+                </div>
+
+
+                <div class="timeline-item completed">
+                    <div class="timeline-marker">03</div>
+
+                    <div class="timeline-content">
+                        <span class="timeline-label">NGO MATCHING AGENT</span>
+                        <h4>Suitable NGO recommended</h4>
+                        <p>
+                            Nearby NGOs are evaluated and
+                            recommendations are ranked.
+                        </p>
+                    </div>
+
+                    <span class="timeline-status">Recommended</span>
+                </div>
+
+
+                <div class="timeline-item pending">
+                    <div class="timeline-marker">04</div>
+
+                    <div class="timeline-content">
+                        <span class="timeline-label">PICKUP COORDINATION AGENT</span>
+                        <h4>Pickup confirmation required</h4>
+                        <p>
+                            A proposed collection arrangement
+                            is sent for approval.
+                        </p>
+                    </div>
+
+                    <span class="timeline-status">Awaiting approval</span>
+                </div>
+
+
+                <div class="timeline-item pending">
+                    <div class="timeline-marker">05</div>
+
+                    <div class="timeline-content">
+                        <span class="timeline-label">IMPACT MONITORING AGENT</span>
+                        <h4>Impact record pending</h4>
+                        <p>
+                            Donation completion information will
+                            be recorded after delivery.
+                        </p>
+                    </div>
+
+                    <span class="timeline-status">Pending</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= ROLES ================= -->
+
+<section class="section wrapper" id="roles">
+
+    <p class="section-label">Be part of the solution</p>
+
+    <h2 class="section-heading">
+        One mission.<br>
+        Two ways to make a difference.
+    </h2>
+
+    <div class="role-grid">
+
+        <div class="role-card">
+
+            <div class="role-icon">D</div>
+
+            <h3>Join as a donor</h3>
+
+            <p>
+                Are you a restaurant, hotel, canteen or event organizer?
+                Share your surplus food and help reduce food waste.
+            </p>
+
+            <a href="#contact" class="btn btn-primary">
+                Register as donor
+            </a>
+
+        </div>
+
+
+        <div class="role-card">
+
+            <div class="role-icon">N</div>
+
+            <h3>Join as an NGO</h3>
+
+            <p>
+                Register your organization, share your food requirements
+                and connect with nearby surplus food donors.
+            </p>
+
+            <a href="#contact" class="btn btn-outline">
+                Register as NGO
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= FINAL CTA ================= -->
+
+<section class="cta-section" id="contact">
+
+    <div class="wrapper">
+
+        <div class="cta-box">
+
+            <div>
+                <p class="section-label">Together, we can do more</p>
+
+                <h2>Ready to bridge the gap?</h2>
+
+                <p>
+                    Join as a donor or register your NGO today.
+                    Let's make every meal count.
+                </p>
+            </div>
+
+            <a href="#roles" class="btn">
+                Get started
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+</main>
+
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+    <div class="wrapper footer-content">
+
+        <div>
+            <a href="#" class="footer-logo">FoodBridge.</a>
+            <p>Connecting surplus food with those who need it.</p>
+        </div>
+
+        <div class="footer-links">
+            <a href="#how">About</a>
+            <a href="#contact">Contact</a>
+            <a href="#impact">Impact</a>
+        </div>
+
+        <p>© 2026 FoodBridge. All rights reserved.</p>
+
+    </div>
+
+</footer>
+
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>

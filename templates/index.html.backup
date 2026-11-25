@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge Home</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="page-container">
+
+    <!-- NAVIGATION -->
+    <header class="navbar wrapper">
+        <div class="logo">FoodBridge</div>
+
+        <nav class="nav-links">
+            <a href="#how">How it works</a>
+            <a href="#who">For donors</a>
+            <a href="#who">For NGOs</a>
+            <a href="#impact">Impact</a>
+        </nav>
+
+        <div class="nav-actions">
+            <a href="#" class="btn login-btn">Log in</a>
+            <a href="#" class="btn donate-btn">Donate food</a>
+        </div>
+    </header>
+
+
+    <!-- HERO SECTION -->
+    <section class="hero wrapper">
+
+        <div class="hero-content">
+            <div class="section-label">AI-powered food donation</div>
+
+            <h1>Surplus food, delivered to people who need it.</h1>
+
+            <p class="hero-description">
+                FoodBridge connects restaurants, hotels, canteens and event
+                organizers with nearby NGOs, matching by quantity, freshness,
+                urgency and location.
+            </p>
+
+            <div class="hero-buttons">
+                <a href="#" class="btn primary-btn">I have surplus food</a>
+                <a href="#" class="btn secondary-btn">I represent an NGO</a>
+            </div>
+        </div>
+
+
+        <!-- LIVE MATCH CARD -->
+        <div class="live-match card">
+
+            <div class="section-label">Live match</div>
+
+            <h2>[Donor name] to [NGO name]</h2>
+
+            <div class="match-details">
+
+                <div class="match-detail">
+                    <strong>Quantity</strong>
+                    <span>[00] meals</span>
+                </div>
+
+                <div class="match-detail">
+                    <strong>Freshness</strong>
+                    <span>[Safe for 00 hrs]</span>
+                </div>
+
+                <div class="match-detail">
+                    <strong>Urgency</strong>
+                    <span>[High]</span>
+                </div>
+
+                <div class="match-detail">
+                    <strong>Distance</strong>
+                    <span>[0.0] km</span>
+                </div>
+
+            </div>
+
+            <div class="map-placeholder">
+                Map: pickup route
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- IMPACT STATISTICS -->
+    <section class="impact-section" id="impact">
+
+        <div class="wrapper impact-grid">
+
+            <div class="impact-item">
+                <div class="impact-number">[00,000]</div>
+                <div>meals rescued</div>
+            </div>
+
+            <div class="impact-item">
+                <div class="impact-number">[000]</div>
+                <div>partner donors</div>
+            </div>
+
+            <div class="impact-item">
+                <div class="impact-number">[000]</div>
+                <div>NGOs served</div>
+            </div>
+
+            <div class="impact-item">
+                <div class="impact-number">[00] t</div>
+                <div>waste diverted</div>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- HOW IT WORKS -->
+    <section class="wrapper content-section" id="how">
+
+        <div class="section-label">How it works</div>
+
+        <h2 class="section-heading">From surplus to served in four steps</h2>
+
+        <div class="grid-four">
+
+            <div class="card step-card">
+                <div class="step-number">01</div>
+                <h3>List surplus</h3>
+                <p>
+                    Donors post food type, quantity and pickup window in under a minute.
+                </p>
+            </div>
+
+            <div class="card step-card">
+                <div class="step-number">02</div>
+                <h3>AI matches</h3>
+                <p>
+                    The engine ranks nearby NGOs by need, capacity, freshness and distance.
+                </p>
+            </div>
+
+            <div class="card step-card">
+                <div class="step-number">03</div>
+                <h3>Confirm pickup</h3>
+                <p>
+                    The NGO accepts, and a volunteer or driver is assigned with live tracking.
+                </p>
+            </div>
+
+            <div class="card step-card">
+                <div class="step-number">04</div>
+                <h3>Track impact</h3>
+                <p>
+                    Both sides get a receipt with meals served and waste avoided.
+                </p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- WHO IT'S FOR -->
+    <section class="wrapper content-section who-section" id="who">
+
+        <div class="section-label">Who it’s for</div>
+
+        <h2 class="section-heading">One platform, every kind of surplus</h2>
+
+        <div class="grid-four">
+
+            <div class="card category-card">
+                <h3>Restaurants</h3>
+                <p>Turn end-of-day extras into meals.</p>
+            </div>
+
+            <div class="card category-card">
+                <h3>Hotels</h3>
+                <p>Redirect buffet and banquet surplus.</p>
+            </div>
+
+            <div class="card category-card">
+                <h3>College canteens</h3>
+                <p>Share surplus after mess hours.</p>
+            </div>
+
+            <div class="card category-card">
+                <h3>Event organizers</h3>
+                <p>Rescue food after weddings and fests.</p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- INTELLIGENT MATCHING -->
+    <section class="wrapper matching-section">
+
+        <div class="matching-content">
+
+            <div class="section-label">Intelligent matching</div>
+
+            <h2 class="section-heading">Four signals decide every match</h2>
+
+            <p>
+                Each listing is scored in real time so the right food reaches
+                the right NGO before it spoils.
+            </p>
+
+        </div>
+
+
+        <div class="card matching-card">
+
+            <div class="matching-row">
+                <strong>Food quantity</strong>
+                <span>meals vs NGO capacity</span>
+            </div>
+
+            <div class="matching-row">
+                <strong>Freshness</strong>
+                <span>safe-to-eat window</span>
+            </div>
+
+            <div class="matching-row">
+                <strong>Urgency</strong>
+                <span>time left to pickup</span>
+            </div>
+
+            <div class="matching-row">
+                <strong>Location</strong>
+                <span>distance and route</span>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- FINAL CALL TO ACTION -->
+    <section class="wrapper cta-section">
+
+        <div class="cta-box">
+
+            <h2>Ready to bridge the gap?</h2>
+
+            <p>Join as a donor or register your NGO today.</p>
+
+            <a href="#" class="btn cta-btn">Get started</a>
+
+        </div>
+
+    </section>
+
+
+    <!-- FOOTER -->
+    <footer class="footer">
+
+        <div class="wrapper footer-content">
+
+            <div class="footer-logo">FoodBridge</div>
+
+            <div class="footer-links">
+                About · Contact · Privacy · [YOUR EMAIL]
+            </div>
+
+            <div class="copyright">
+                © 2026 FoodBridge
+            </div>
+
+        </div>
+
+    </footer>
+
+</div>
+
+</body>
+</html>
